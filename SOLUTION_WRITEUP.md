@@ -8,6 +8,8 @@ My approach combined **Logistic Regression on team-level differential features**
 
 Separate models for men's and women's tournaments. 52 rounds of iteration over 4 weeks.
 
+![Tiered Market Blend Architecture](figures/04_blend_tiers.png)
+
 ## What Worked
 
 1. **Logistic Regression over XGBoost for Stage 2** — LR CV Brier 0.124 vs XGB 0.157. With ~650 training rows and differential features, the true relationship is approximately logistic. LR has lower variance and generalizes better to unseen games. XGB won Stage 1 because it memorized ~536 known training games.
@@ -102,6 +104,8 @@ All features are computed as **differentials**: `feature_Team1 - feature_Team2` 
 
 The women's model uses fewer features because women's basketball is more seed-predictable (higher seed wins 76.2% vs 68.9% in men's), and with ~646 training rows, more features = more overfitting.
 
+![LR Feature Importance](figures/01_coefficients.png)
+
 ### Custom Rating Systems
 
 **Carry-over Elo:**
@@ -146,6 +150,8 @@ Pipeline:
 - **No recency weighting** for LR (confirmed through ablation — it hurts by reducing effective sample size).
 - **Final CV (LOSO Brier):** Men's 0.11199, Women's 0.13506, Combined **0.12352**.
 
+![Calibration Plot](figures/03_calibration.png)
+
 ### Market Probability Blend (Post-Processing)
 
 The key innovation was blending LR predictions with prediction market probabilities in a **tiered system**:
@@ -179,6 +185,8 @@ The rationale: markets aggregate millions of dollars of analysis including real-
 - **Michigan 79% in championship** — Higher than Vegas (~70%). Michigan won. This call alone likely moved us from ~5th to 3rd.
 
 ### Progression Summary
+
+![Brier Score Progression](figures/02_progression.png)
 
 | Phase | Rounds | CV (Brier) | Key Changes |
 |-------|--------|------------|-------------|
