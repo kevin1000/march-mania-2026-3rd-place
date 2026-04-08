@@ -179,6 +179,10 @@ The key innovation was blending LR predictions with prediction market probabilit
 
 The rationale: markets aggregate millions of dollars of analysis including real-time injury/lineup information that no pre-tournament statistical model can capture. The tiered approach trusts markets most where they're most informative (game-specific R1 picks) and least where they're thin (deep tournament matchups between low-profile teams).
 
+![LR vs Market Scatter](figures/05_lr_vs_market.png)
+
+![Seed Matchup Heatmap](figures/06_seed_heatmap.png)
+
 ### Key Contrarian Calls That Paid Off
 
 - **UConn 70% vs Michigan State (Sweet 16)** — Model was high on UConn despite them being lower-seeded. Correct.

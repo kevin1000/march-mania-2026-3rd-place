@@ -515,10 +515,288 @@ def plot_blend_impact():
     print("    Saved figures/04_blend_tiers.png")
 
 
+# ── Figure 5: LR vs Market Scatter (2026 Men's R1) ──────────────
+
+
+def plot_lr_vs_market():
+    print("  Generating LR vs Market scatter plot...")
+    from round52_final import (
+        BPI_R1_GAMES,
+        VEGAS_M_R1_GAMES,
+        market_consensus,
+    )
+    from round50_final import BPI_TEAM_MAP
+
+    # Build reverse map: id -> name
+    id_to_name = {v: k for k, v in BPI_TEAM_MAP.items()}
+    # Add extra mappings from round52
+    from round52_final import _VEGAS_EXTRA_MAP
+
+    for name, tid in _VEGAS_EXTRA_MAP.items():
+        id_to_name[tid] = name
+
+    # Train full men's model
+    X, y, groups, feats = _build_data("M")
+    pipe = _fit_pipeline(X, y, C_M)
+
+    # Get 2026 features
+    features_2026 = build_m_features(2026)
+
+    # Collect LR vs market for all R1 games with market data
+    points = []
+    all_keys = set(BPI_R1_GAMES.keys()) | set(VEGAS_M_R1_GAMES.keys())
+    for key in sorted(all_keys):
+        t1, t2 = key
+        # LR prediction
+        x_row = []
+        for feat in feats:
+            v1 = features_2026.loc[t1, feat] if t1 in features_2026.index else np.nan
+            v2 = features_2026.loc[t2, feat] if t2 in features_2026.index else np.nan
+            x_row.append(v1 - v2 if not (np.isnan(v1) or np.isnan(v2)) else np.nan)
+        x_arr = np.array([x_row], dtype=np.float32)
+        lr_pred = float(pipe.predict_proba(x_arr)[:, 1][0])
+
+        cons = market_consensus(t1, t2, BPI_R1_GAMES, VEGAS_M_R1_GAMES)
+        if cons is None:
+            continue
+
+        n1 = id_to_name.get(t1, str(t1))
+        n2 = id_to_name.get(t2, str(t2))
+        diff = abs(lr_pred - cons)
+        points.append((lr_pred, cons, n1, n2, diff))
+
+    fig, ax = plt.subplots(figsize=(10, 10))
+
+    # Diagonal
+    ax.plot([0, 1], [0, 1], "--", color="#555", linewidth=1.5, zorder=1)
+
+    # Regions
+    ax.fill_between([0, 1], [0, 1], [0, 0], alpha=0.04, color=COLOR_M, zorder=0)
+    ax.fill_between([0, 1], [0, 1], [1, 1], alpha=0.04, color=COLOR_W, zorder=0)
+    ax.text(
+        0.75,
+        0.25,
+        "LR more\nconfident",
+        fontsize=10,
+        color=COLOR_M,
+        alpha=0.5,
+        ha="center",
+        va="center",
+        style="italic",
+    )
+    ax.text(
+        0.25,
+        0.75,
+        "Market more\nconfident",
+        fontsize=10,
+        color=COLOR_W,
+        alpha=0.5,
+        ha="center",
+        va="center",
+        style="italic",
+    )
+
+    # Plot points
+    lr_preds = [p[0] for p in points]
+    mkt_preds = [p[1] for p in points]
+    diffs = [p[4] for p in points]
+
+    scatter = ax.scatter(
+        lr_preds,
+        mkt_preds,
+        c=diffs,
+        cmap="YlOrRd",
+        s=80,
+        edgecolors="#333",
+        linewidth=0.8,
+        zorder=3,
+        vmin=0,
+        vmax=0.15,
+    )
+    cbar = plt.colorbar(scatter, ax=ax, shrink=0.6, pad=0.02)
+    cbar.set_label("LR-Market Disagreement", fontsize=9)
+
+    # Label biggest disagreements (top 10)
+    points_sorted = sorted(points, key=lambda x: -x[4])
+    for lr_p, mkt_p, n1, n2, diff in points_sorted[:12]:
+        # Use shorter name: show underdog or closer team
+        label = f"{n1}\nvs {n2}" if diff > 0.08 else f"{n1} v {n2}"
+        ax.annotate(
+            label,
+            xy=(lr_p, mkt_p),
+            xytext=(8, 8),
+            textcoords="offset points",
+            fontsize=7,
+            color="#ccc",
+            alpha=0.9,
+            arrowprops=dict(arrowstyle="-", color="#666", lw=0.5),
+        )
+
+    ax.set_xlabel("LR Model Prediction (P(Team1 wins))", fontsize=12)
+    ax.set_ylabel("Market Consensus (60% Vegas + 40% BPI)", fontsize=12)
+    ax.set_title(
+        "LR vs Market: 2026 Men's Round 1 Predictions",
+        fontsize=14,
+        fontweight="bold",
+    )
+    ax.set_xlim(-0.02, 1.02)
+    ax.set_ylim(-0.02, 1.02)
+    ax.set_aspect("equal")
+    ax.grid(alpha=0.2)
+
+    plt.tight_layout()
+    fig.savefig(FIGURES / "05_lr_vs_market.png", dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    print("    Saved figures/05_lr_vs_market.png")
+
+
+# ── Figure 6: Seed Matchup Heatmap ──────────────────────────────
+
+
+def plot_seed_heatmap():
+    print("  Generating seed matchup heatmap...")
+    from round27_pruned import _m_seeds
+
+    # Get OOF predictions with seed info
+    tourney = _m_tourney
+    seeds_all = _m_seeds
+    feats = list(FEATURES_M)
+
+    rows = []
+    for season in TRAIN_SEASONS:
+        games = tourney[tourney["Season"] == season]
+        if len(games) == 0:
+            continue
+        features = build_m_features(season)
+        season_seeds = seeds_all[seeds_all["Season"] == season].set_index("TeamID")
+        for _, g in games.iterrows():
+            t1 = min(int(g["WTeamID"]), int(g["LTeamID"]))
+            t2 = max(int(g["WTeamID"]), int(g["LTeamID"]))
+            s1 = season_seeds.loc[t1, "SeedNum"] if t1 in season_seeds.index else None
+            s2 = season_seeds.loc[t2, "SeedNum"] if t2 in season_seeds.index else None
+            if s1 is None or s2 is None:
+                continue
+            row = {
+                "Season": float(season),
+                "Team1Win": 1.0 if int(g["WTeamID"]) == t1 else 0.0,
+                "Seed1": int(s1),
+                "Seed2": int(s2),
+            }
+            for feat in feats:
+                v1 = features.loc[t1, feat] if t1 in features.index else np.nan
+                v2 = features.loc[t2, feat] if t2 in features.index else np.nan
+                row[f"d_{feat}"] = v1 - v2
+            rows.append(row)
+
+    df = pd.DataFrame(rows)
+    feat_cols = [f"d_{f}" for f in feats]
+    X = df[feat_cols].values.astype(np.float32)
+    y = df["Team1Win"].values.astype(np.float32)
+    groups = df["Season"].values.astype(int)
+
+    # Get OOF predictions
+    oof = _get_oof(X, y, groups, C_M, CLIP_M_LOW, CLIP_M_HIGH)
+
+    # Build heatmap: for each (seed_low, seed_high) pair, compute avg P(lower seed wins)
+    # Normalize so lower seed is always "Team A"
+    heat = np.full((16, 16), np.nan)
+    counts = np.zeros((16, 16), dtype=int)
+
+    for i in range(len(df)):
+        s1 = int(df.iloc[i]["Seed1"])
+        s2 = int(df.iloc[i]["Seed2"])
+        pred = oof[i]
+        actual_team1_is_lower_seed = s1 < s2
+
+        if s1 == s2:
+            # Same seed: just use prediction as-is
+            heat_row, heat_col = s1 - 1, s2 - 1
+            if np.isnan(heat[heat_row, heat_col]):
+                heat[heat_row, heat_col] = 0.0
+            heat[heat_row, heat_col] += pred
+            counts[heat_row, heat_col] += 1
+        elif actual_team1_is_lower_seed:
+            # Team1 (lower ID) has lower seed → pred = P(lower seed wins)
+            heat_row, heat_col = s1 - 1, s2 - 1
+            if np.isnan(heat[heat_row, heat_col]):
+                heat[heat_row, heat_col] = 0.0
+            heat[heat_row, heat_col] += pred
+            counts[heat_row, heat_col] += 1
+        else:
+            # Team1 has higher seed → flip: P(lower seed wins) = 1 - pred
+            heat_row, heat_col = s2 - 1, s1 - 1
+            if np.isnan(heat[heat_row, heat_col]):
+                heat[heat_row, heat_col] = 0.0
+            heat[heat_row, heat_col] += 1.0 - pred
+            counts[heat_row, heat_col] += 1
+
+    # Average
+    mask = counts > 0
+    heat[mask] = heat[mask] / counts[mask]
+
+    fig, ax = plt.subplots(figsize=(10, 9))
+
+    # Only show lower-left triangle (row_seed < col_seed)
+    display = np.full((16, 16), np.nan)
+    for r in range(16):
+        for c in range(r, 16):
+            if counts[r, c] > 0:
+                display[r, c] = heat[r, c]
+
+    im = ax.imshow(
+        display,
+        cmap="RdYlGn",
+        vmin=0.0,
+        vmax=1.0,
+        aspect="equal",
+        origin="upper",
+    )
+
+    # Annotate cells
+    for r in range(16):
+        for c in range(16):
+            if not np.isnan(display[r, c]) and counts[r, c] > 0:
+                val = display[r, c]
+                n = counts[r, c]
+                text_color = "#111" if 0.3 < val < 0.7 else "#eee"
+                ax.text(
+                    c,
+                    r,
+                    f"{val:.0%}\n({n})",
+                    ha="center",
+                    va="center",
+                    fontsize=7,
+                    color=text_color,
+                    fontweight="bold",
+                )
+
+    ax.set_xticks(range(16))
+    ax.set_xticklabels(range(1, 17))
+    ax.set_yticks(range(16))
+    ax.set_yticklabels(range(1, 17))
+    ax.set_xlabel("Opponent Seed (higher = weaker)", fontsize=12)
+    ax.set_ylabel("Team Seed (lower = stronger)", fontsize=12)
+    ax.set_title(
+        "Predicted Win Probability by Seed Matchup (Men's, LOSO CV)",
+        fontsize=13,
+        fontweight="bold",
+    )
+
+    cbar = plt.colorbar(im, ax=ax, shrink=0.8)
+    cbar.set_label("P(lower seed wins)", fontsize=10)
+
+    plt.tight_layout()
+    fig.savefig(FIGURES / "06_seed_heatmap.png", dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    print("    Saved figures/06_seed_heatmap.png")
+
+
 if __name__ == "__main__":
     print("Generating visualizations...\n")
     plot_coefficients()
     plot_progression()
     plot_calibration()
     plot_blend_impact()
+    plot_lr_vs_market()
+    plot_seed_heatmap()
     print("\nDone! All figures saved to figures/")
