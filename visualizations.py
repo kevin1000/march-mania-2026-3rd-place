@@ -46,25 +46,25 @@ FIGURES = HERE / "figures"
 FIGURES.mkdir(exist_ok=True)
 TRAIN_SEASONS = [y for y in range(2015, 2026) if y != 2020]
 
-# Plot style
+# Plot style — light theme
 plt.rcParams.update(
     {
-        "figure.facecolor": "#0e1117",
-        "axes.facecolor": "#0e1117",
-        "axes.edgecolor": "#333",
-        "axes.labelcolor": "#eee",
-        "text.color": "#eee",
-        "xtick.color": "#ccc",
-        "ytick.color": "#ccc",
-        "grid.color": "#222",
-        "grid.alpha": 0.5,
+        "figure.facecolor": "#ffffff",
+        "axes.facecolor": "#ffffff",
+        "axes.edgecolor": "#cccccc",
+        "axes.labelcolor": "#222222",
+        "text.color": "#222222",
+        "xtick.color": "#444444",
+        "ytick.color": "#444444",
+        "grid.color": "#dddddd",
+        "grid.alpha": 0.7,
         "font.family": "sans-serif",
         "font.size": 11,
     }
 )
-COLOR_M = "#ff6b35"  # orange for men's
-COLOR_W = "#4ecdc4"  # teal for women's
-COLOR_ACCENT = "#ffd166"  # gold
+COLOR_M = "#d35400"  # orange for men's
+COLOR_W = "#16a085"  # teal for women's
+COLOR_ACCENT = "#e67e22"  # warm orange
 
 
 def _build_data(gender: str):
@@ -156,7 +156,7 @@ def plot_coefficients():
         ax.set_yticklabels(sorted_feats, fontsize=9)
         ax.set_xlabel("Standardized Coefficient")
         ax.set_title(title, fontsize=13, fontweight="bold")
-        ax.axvline(0, color="#555", linewidth=0.8)
+        ax.axvline(0, color="#aaa", linewidth=0.8)
         ax.grid(axis="x", alpha=0.3)
 
     fig.suptitle(
@@ -200,7 +200,7 @@ def plot_progression():
         linewidth=2.5,
         marker="o",
         markersize=10,
-        markeredgecolor="#0e1117",
+        markeredgecolor="#ffffff",
         markeredgewidth=2,
         zorder=3,
     )
@@ -255,7 +255,7 @@ def plot_calibration():
 
     # Perfect calibration line
     ax.plot(
-        [0, 1], [0, 1], "--", color="#555", linewidth=1.5, label="Perfect calibration"
+        [0, 1], [0, 1], "--", color="#aaa", linewidth=1.5, label="Perfect calibration"
     )
 
     for gender, color, label in [
@@ -390,8 +390,8 @@ def plot_blend_impact():
             (3.5, ypos - 0.35),
             2.5,
             0.7,
-            facecolor="#1a1a2e",
-            edgecolor="#333",
+            facecolor="#f0f0f0",
+            edgecolor="#cccccc",
             linewidth=1,
             zorder=2,
         )
@@ -403,7 +403,7 @@ def plot_blend_impact():
             ha="center",
             va="center",
             fontsize=9,
-            color="#ccc",
+            color="#444",
             zorder=3,
         )
 
@@ -426,7 +426,7 @@ def plot_blend_impact():
             fontweight="bold",
             bbox=dict(
                 boxstyle="round,pad=0.3",
-                facecolor="#1a1a2e",
+                facecolor="#ffffff",
                 edgecolor=COLOR_M,
                 alpha=0.8,
             ),
@@ -441,7 +441,7 @@ def plot_blend_impact():
             fontweight="bold",
             bbox=dict(
                 boxstyle="round,pad=0.3",
-                facecolor="#1a1a2e",
+                facecolor="#ffffff",
                 edgecolor=COLOR_W,
                 alpha=0.8,
             ),
@@ -455,7 +455,7 @@ def plot_blend_impact():
             ha="center",
             va="center",
             fontsize=8,
-            color="#999",
+            color="#666",
         )
 
         # Fallback arrow to next tier
@@ -466,8 +466,8 @@ def plot_blend_impact():
                 xytext=(1.75, ypos - 0.6),
                 ha="center",
                 fontsize=7,
-                color="#666",
-                arrowprops=dict(arrowstyle="->", color="#444", lw=1),
+                color="#999",
+                arrowprops=dict(arrowstyle="->", color="#aaa", lw=1),
             )
 
     # Headers
@@ -478,7 +478,7 @@ def plot_blend_impact():
         ha="center",
         fontsize=10,
         fontweight="bold",
-        color="#888",
+        color="#666",
     )
     ax.text(
         4.75,
@@ -487,7 +487,7 @@ def plot_blend_impact():
         ha="center",
         fontsize=10,
         fontweight="bold",
-        color="#888",
+        color="#666",
     )
     ax.text(
         6.5,
@@ -496,7 +496,7 @@ def plot_blend_impact():
         ha="center",
         fontsize=10,
         fontweight="bold",
-        color="#888",
+        color="#666",
     )
     ax.text(
         8.2, 3.7, "COVERAGE", ha="center", fontsize=10, fontweight="bold", color="#888"
@@ -568,7 +568,7 @@ def plot_lr_vs_market():
     fig, ax = plt.subplots(figsize=(10, 10))
 
     # Diagonal
-    ax.plot([0, 1], [0, 1], "--", color="#555", linewidth=1.5, zorder=1)
+    ax.plot([0, 1], [0, 1], "--", color="#aaa", linewidth=1.5, zorder=1)
 
     # Regions
     ax.fill_between([0, 1], [0, 1], [0, 0], alpha=0.04, color=COLOR_M, zorder=0)
@@ -607,7 +607,7 @@ def plot_lr_vs_market():
         c=diffs,
         cmap="YlOrRd",
         s=80,
-        edgecolors="#333",
+        edgecolors="#888",
         linewidth=0.8,
         zorder=3,
         vmin=0,
@@ -627,9 +627,9 @@ def plot_lr_vs_market():
             xytext=(8, 8),
             textcoords="offset points",
             fontsize=7,
-            color="#ccc",
+            color="#333",
             alpha=0.9,
-            arrowprops=dict(arrowstyle="-", color="#666", lw=0.5),
+            arrowprops=dict(arrowstyle="-", color="#999", lw=0.5),
         )
 
     ax.set_xlabel("LR Model Prediction (P(Team1 wins))", fontsize=12)
@@ -758,7 +758,7 @@ def plot_seed_heatmap():
             if not np.isnan(display[r, c]) and counts[r, c] > 0:
                 val = display[r, c]
                 n = counts[r, c]
-                text_color = "#111" if 0.3 < val < 0.7 else "#eee"
+                text_color = "#222" if 0.3 < val < 0.7 else "#222"
                 ax.text(
                     c,
                     r,
